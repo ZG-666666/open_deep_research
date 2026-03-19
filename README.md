@@ -1,295 +1,252 @@
-# 🔬 Open Deep Research
+# RAG Research Assistant
 
-<img width="1388" height="298" alt="full_diagram" src="https://github.com/user-attachments/assets/12a2371b-8be2-4219-9b48-90503eb43c69" />
+一个基于 Open Deep Research 的二次开发项目。在原有深度研究流程上，补齐了本地知识检索（RAG）、会话/长期记忆、可追溯证据输出和评测回归能力，适合做可持续迭代的研究助手。
 
-Deep research has broken out as one of the most popular agent applications. This is a simple, configurable, fully open source deep research agent that works across many model providers, search tools, and MCP servers. It's performance is on par with many popular deep research agents ([see Deep Research Bench leaderboard](https://huggingface.co/spaces/Ayanami0730/DeepResearch-Leaderboard)).
+## What This Version Adds
 
-<img width="817" height="666" alt="Screenshot 2025-07-13 at 11 21 12 PM" src="https://github.com/user-attachments/assets/052f2ed3-c664-4a4f-8ec2-074349dcaa3f" />
+- 本地知识库检索：支持 md、txt、pdf、docx 入库到 Chroma
+- 会话记忆：同线程自动继承偏好（例如中文、简洁、不要表格）
+- 长期记忆：默认 explicit_confirmation，明确确认后才写入
+- 三通道证据：web + local + memory，输出可追溯引用
+- 运行时控制：支持 user_id、memory_mode、rag_scope
+- 评测扩展：新增个性化、记忆有效性、来源多样性指标和回归矩阵
 
-### 🔥 Recent Updates
+## 5-Minute Demo (For Interviewers)
 
-**August 14, 2025**: See our free course [here](https://academy.langchain.com/courses/deep-research-with-langgraph) (and course repo [here](https://github.com/langchain-ai/deep_research_from_scratch)) on building open deep research.
+1. 启动服务
 
-**August 7, 2025**: Added GPT-5 and updated the Deep Research Bench evaluation w/ GPT-5 results.
-
-**August 2, 2025**: Achieved #6 ranking on the [Deep Research Bench Leaderboard](https://huggingface.co/spaces/Ayanami0730/DeepResearch-Leaderboard) with an overall score of 0.4344. 
-
-**July 30, 2025**: Read about the evolution from our original implementations to the current version in our [blog post](https://rlancemartin.github.io/2025/07/30/bitter_lesson/).
-
-**July 16, 2025**: Read more in our [blog](https://blog.langchain.com/open-deep-research/) and watch our [video](https://www.youtube.com/watch?v=agGiWUpxkhg) for a quick overview.
-
-### 🚀 Quickstart
-
-1. Clone the repository and activate a virtual environment:
 ```bash
-git clone https://github.com/langchain-ai/open_deep_research.git
+uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev --allow-blocking
+```
+
+2. 在 Studio 发送：请用中文简洁回答，不要表格，分析 2026 年 AI Agent 落地难点。
+3. 在同一线程继续追问，确认风格自动延续。
+4. 若开启长期记忆，发送“确认记忆”，新线程再提问，确认偏好仍生效。
+5. 提问一个本地资料问题，确认回答里有本地来源引用。
+
+预期结果：个性化可复现、本地检索可命中、关键结论可追溯。
+
+## 你可以用它做什么
+
+- 同时利用网络信息和本地资料完成研究与报告生成
+- 在同一会话中记住表达偏好
+- 在明确确认后写入长期偏好并跨会话复用
+- 对关键结论给出可追踪来源，便于复核
+- 用验收与评测脚本快速检查改造功能是否稳定
+
+## 30 秒理解工作流
+
+1. 用户提问并给出偏好（可选）
+2. Agent 判断是否需要澄清
+3. supervisor 拆解研究任务
+4. researcher 并行调用工具（Web Search / Local RAG / Memory）
+5. 汇总证据并生成最终报告
+6. API 结果附带来源与过程信息
+
+## 快速开始（普通用户路径）
+
+### 1) 环境准备
+
+```bash
+git clone <your-fork-url>
 cd open_deep_research
 uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-2. Install dependencies:
+激活虚拟环境：
+
+- macOS / Linux
+
+```bash
+source .venv/bin/activate
+```
+
+- Windows PowerShell
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+安装依赖：
+
 ```bash
 uv sync
-# or
-uv pip install -r pyproject.toml
 ```
 
-3. Set up your `.env` file to customize the environment variables (for model selection, search tools, and other configuration settings):
+### 2) 配置 .env
+
 ```bash
 cp .env.example .env
 ```
 
-4. Launch agent with the LangGraph server locally:
+至少先配置：
 
 ```bash
-# Install dependencies and start the LangGraph server
-uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev --allow-blocking
+OPENAI_API_KEY=你的key
+TAVILY_API_KEY=你的key
+LANGSMITH_API_KEY=你的key
+LANGSMITH_TRACING=true
 ```
 
-This will open the LangGraph Studio UI in your browser.
-
-```
-- 🚀 API: http://127.0.0.1:2024
-- 🎨 Studio UI: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
-- 📚 API Docs: http://127.0.0.1:2024/docs
-```
-
-Ask a question in the `messages` input field and click `Submit`. Select different configuration in the "Manage Assistants" tab.
-
-### What This Version Adds (Fork Highlights)
-
-This branch extends the original Open Deep Research with a practical "personalized research assistant" workflow. The key additions are:
-
-- Local knowledge retrieval (RAG) with Chroma, including ingestion for `md/txt/pdf/docx`
-- Session memory (short-term) for turn-to-turn preference carryover
-- Long-term memory with explicit confirmation before write
-- Unified evidence appendices and citation ids for traceability
-- Runtime controls for API use (`user_id`, memory mode, RAG scope)
-- Expanded evaluation suite (quality + personalization + memory usefulness + source diversity)
-
-If you are reviewing this project as an interviewer, the implementation demonstrates:
-
-- End-to-end product thinking (feature design -> acceptance tests -> regression checks)
-- Config-driven architecture instead of hardcoded behavior
-- Safety and observability defaults (explicit memory confirmation, traceable sources)
-- Practical evaluation engineering with matrix comparisons and baseline summaries
-
-### 5-Minute Demo (For Interviewers)
-
-1. Start server:
+### 3) 启动本地服务
 
 ```bash
 uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev --allow-blocking
 ```
 
-2. Open Studio and ask: "Please answer in Chinese, concise style, and avoid tables."
-3. Ask a second question in the same thread to verify preference carryover.
-4. If memory is enabled, send: "确认记忆" (or "confirm memory") and start a new thread to check persistent preference reuse.
-5. Ask a local-doc question (after ingestion) and confirm report citations include local evidence.
+启动后入口：
 
-Expected outcome: style personalization works, local retrieval works, and critical conclusions can be traced to evidence.
+- API: http://127.0.0.1:2024
+- Studio: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
+- API Docs: http://127.0.0.1:2024/docs
 
-### ⚙️ Configurations
+### 4) 最小可运行示例
 
-#### LLM :brain:
+在 Studio 的 messages 输入：
 
-Open Deep Research supports a wide range of LLM providers via the [init_chat_model() API](https://python.langchain.com/docs/how_to/chat_models_universal_init/). It uses LLMs for a few different tasks. See the below model fields in the [configuration.py](https://github.com/langchain-ai/open_deep_research/blob/main/src/open_deep_research/configuration.py) file for more details. This can be accessed via the LangGraph Studio UI. 
-
-- **Summarization** (default: `openai:gpt-4.1-mini`): Summarizes search API results
-- **Research** (default: `openai:gpt-4.1`): Power the search agent
-- **Compression** (default: `openai:gpt-4.1`): Compresses research findings
-- **Final Report Model** (default: `openai:gpt-4.1`): Write the final report
-
-> Note: the selected model will need to support [structured outputs](https://python.langchain.com/docs/integrations/chat/) and [tool calling](https://python.langchain.com/docs/how_to/tool_calling/).
-
-> Note: For OpenRouter: Follow [this guide](https://github.com/langchain-ai/open_deep_research/issues/75#issuecomment-2811472408) and for local models via Ollama  see [setup instructions](https://github.com/langchain-ai/open_deep_research/issues/65#issuecomment-2743586318).
-
-#### Search API :mag:
-
-Open Deep Research supports a wide range of search tools. By default it uses the [Tavily](https://www.tavily.com/) search API. Has full MCP compatibility and work native web search for Anthropic and OpenAI. See the `search_api` and `mcp_config` fields in the [configuration.py](https://github.com/langchain-ai/open_deep_research/blob/main/src/open_deep_research/configuration.py) file for more details. This can be accessed via the LangGraph Studio UI. 
-
-#### Other 
-
-See the fields in the [configuration.py](https://github.com/langchain-ai/open_deep_research/blob/main/src/open_deep_research/configuration.py) for various other settings to customize the behavior of Open Deep Research. 
-
-### 🧠 Personalized Q&A Foundation (RAG + Memory)
-
-This repository now includes the configuration foundation for a personalized assistant workflow with:
-
-- Local knowledge base retrieval (RAG)
-- Session memory (short-term)
-- User memory (long-term)
-
-You can configure these fields in LangGraph Studio (Manage Assistants) or via `.env` / `configurable` values:
-
-- `rag_enabled` - Enable local knowledge retrieval
-- `local_knowledge_base_path` - Source folder for local files (md/txt/pdf/docx)
-- `vector_store_provider` - Current default: `chroma`
-- `chroma_persist_directory` - Local Chroma persistence folder
-- `embedding_model` - Embedding model for indexing/search
-- `rag_top_k` - Number of retrieved chunks per query
-- `memory_enabled` - Enable memory features
-- `memory_write_policy` - Default is `explicit_confirmation`
-- `memory_max_candidates_per_turn` - Max memory candidates proposed per turn
-- `memory_namespace_prefix` - Prefix for persistent memory namespaces
-- `user_id` - Optional local fallback user id (when metadata owner is unavailable)
-
-Example `.env` additions:
-
-```bash
-RAG_ENABLED=false
-LOCAL_KNOWLEDGE_BASE_PATH=./knowledge
-VECTOR_STORE_PROVIDER=chroma
-CHROMA_PERSIST_DIRECTORY=.chroma
-EMBEDDING_MODEL=openai:text-embedding-3-small
-RAG_TOP_K=5
-MEMORY_ENABLED=false
-MEMORY_WRITE_POLICY=explicit_confirmation
-MEMORY_MAX_CANDIDATES_PER_TURN=3
-MEMORY_NAMESPACE_PREFIX=memory
+```text
+请用中文简洁回答，不要表格。分析一下 2026 年 AI Agent 在企业落地的关键约束。
 ```
 
-These settings are implemented in this branch and remain backward compatible with existing deep research flows.
+再追问一个相关问题，检查同线程是否保持偏好风格。
 
-#### Typical User Workflow (Non-Technical Friendly)
+## 本地知识库（RAG）
 
-1. Put your files under a folder (example: `./documents`).
-2. Build local index once:
+### 支持格式
 
-```bash
-python -m open_deep_research.ingestion --source ./documents --rebuild
-```
+- md
+- txt
+- pdf
+- docx
 
-3. Start server:
-
-```bash
-uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev --allow-blocking
-```
-
-4. Open Studio and ask your question.
-5. Add new files later? Re-run ingestion without rebuild:
-
-```bash
-python -m open_deep_research.ingestion --source ./documents
-```
-
-Notes:
-
-- `--rebuild` clears existing local index first.
-- Ingestion is idempotent at file level (same source path is replaced, not duplicated).
-- Supported file types: `md`, `txt`, `pdf`, `docx`.
-
-#### Build Local Knowledge Base (Chroma)
-
-After configuring `.env`, build your local index:
+### 构建索引
 
 ```bash
 python -m open_deep_research.ingestion --source ./knowledge --rebuild
 ```
 
-This indexes `md`, `txt`, `pdf`, and `docx` files into the configured `CHROMA_PERSIST_DIRECTORY`.
+- --rebuild：先清空旧索引再重建
+- 不加 --rebuild：增量更新（同路径文档会替换，不重复堆叠）
 
-Then set:
+### 启用 RAG
+
+在 .env 中设置：
 
 ```bash
 RAG_ENABLED=true
-MEMORY_ENABLED=true
-MEMORY_WRITE_POLICY=explicit_confirmation
+LOCAL_KNOWLEDGE_BASE_PATH=./knowledge
+VECTOR_STORE_PROVIDER=chroma
+CHROMA_PERSIST_DIRECTORY=.chroma
+EMBEDDING_MODEL=openai:text-embedding-3-small
+RAG_TOP_K=5
 ```
 
-With this enabled, the researcher toolchain can call `rag_search` to retrieve local context alongside web research.
+### 常见问题排查
 
-### 📊 Evaluation
+- 目录不存在：检查 --source 路径
+- PDF 或 DOCX 解析失败：安装 pymupdf、python-docx
+- 检索为空：确认 ingestion 返回 status=ok 且索引目录存在
 
-Open Deep Research is configured for evaluation with [Deep Research Bench](https://huggingface.co/spaces/Ayanami0730/DeepResearch-Leaderboard). This benchmark has 100 PhD-level research tasks (50 English, 50 Chinese), crafted by domain experts across 22 fields (e.g., Science & Tech, Business & Finance) to mirror real-world deep-research needs. It has 2 evaluation metrics, but the leaderboard is based on the RACE score. This uses LLM-as-a-judge (Gemini) to evaluate research reports against a golden set of reports compiled by experts across a set of metrics.
+## 记忆能力（会话 + 长期）
 
-#### Usage
+### 会话记忆（短期）
 
-> Warning: Running across the 100 examples can cost ~$20-$100 depending on the model selection.
+- 同线程记录临时偏好和关键上下文
+- 典型效果：第二轮回答继承第一轮风格约束
 
-The dataset is available on [LangSmith via this link](https://smith.langchain.com/public/c5e7a6ad-fdba-478c-88e6-3a388459ce8b/d). To kick off evaluation, run the following command:
+### 长期记忆（跨线程）
+
+- 默认策略 explicit_confirmation
+- 只有用户明确确认后，候选偏好才写入长期记忆
+- 可使用“confirm memory / 确认记忆”触发确认写入
+
+### 推荐开关
 
 ```bash
-# Run comprehensive evaluation on LangSmith datasets
+MEMORY_ENABLED=true
+MEMORY_WRITE_POLICY=explicit_confirmation
+MEMORY_MAX_CANDIDATES_PER_TURN=3
+MEMORY_NAMESPACE_PREFIX=memory
+USER_ID=demo-user-001
+```
+
+## 配置速查表（高频）
+
+| 配置项 | 说明 | 常见值 |
+|---|---|---|
+| RAG_ENABLED | 是否启用本地 RAG | true / false |
+| LOCAL_KNOWLEDGE_BASE_PATH | 本地资料目录 | ./knowledge |
+| CHROMA_PERSIST_DIRECTORY | Chroma 持久化目录 | .chroma |
+| EMBEDDING_MODEL | 向量化模型 | openai:text-embedding-3-small |
+| RAG_TOP_K | 每次检索 chunk 数 | 5 |
+| MEMORY_ENABLED | 是否启用记忆能力 | true / false |
+| MEMORY_WRITE_POLICY | 长期记忆写入策略 | explicit_confirmation |
+| MEMORY_MAX_CANDIDATES_PER_TURN | 每轮候选记忆上限 | 3 |
+| MEMORY_NAMESPACE_PREFIX | 记忆命名空间前缀 | memory |
+| USER_ID | 本地测试用户标识 | 自定义字符串 |
+| memory_mode | API 运行时记忆模式 | off/session_only/long_term_only/both |
+| rag_scope | API 运行时 RAG 范围 | disabled/local_only/hybrid |
+
+说明：
+
+- memory_mode、rag_scope 是运行时参数（可通过 API configurable 传入）
+- memory_enabled、rag_enabled 是总开关，关闭后会覆盖对应子能力
+
+## 验证与评测
+
+### 本地快速验收
+
+```bash
+python tests/pr1_pr3_acceptance/validate_pr1_pr3.py
+python tests/pr4_acceptance/validate_pr4.py
+python tests/pr5_acceptance/validate_pr5.py
+python tests/pr6_acceptance/validate_pr6.py
+python tests/pr7_acceptance/validate_pr7.py
+python tests/pr8_acceptance/validate_pr8.py
+```
+
+Windows 也可以：
+
+```powershell
+./tests/pr1_pr3_acceptance/run_acceptance.ps1
+```
+
+### 评测入口
+
+```bash
 python tests/run_evaluate.py
 ```
 
-To run matrix evaluation for regression comparison (RAG on/off x Memory on/off), set:
+如需跑 RAG/Memory 回归矩阵：
 
 ```bash
 ODR_PR8_MATRIX=true
-```
-
-Then execute:
-
-```bash
 python tests/run_evaluate.py
 ```
 
-This produces per-variant outputs and regression summaries (including P50/P95 latency and token cost baselines).
+## 项目结构（核心）
 
-#### Local Acceptance Checks (Fast)
-
-Before sharing/demoing, run these checks:
-
-```bash
-python tests/pr8_acceptance/validate_pr8.py
-python tests/pr1_pr3_acceptance/validate_pr1_pr3.py
-python tests/pr4_acceptance/validate_pr4.py
+```text
+src/open_deep_research/deep_researcher.py   # 主流程与调度
+src/open_deep_research/ingestion.py         # 本地知识库构建
+src/open_deep_research/rag.py               # 本地检索工具
+src/open_deep_research/configuration.py     # 配置定义与校验
+src/open_deep_research/state.py             # 状态定义
+tests/pr1_pr3_acceptance/                   # RAG 基础验收
+tests/pr4_acceptance/                       # 会话记忆验收
+tests/pr5_acceptance/                       # 长期记忆验收
+tests/pr6_acceptance/                       # 三通道融合验收
+tests/pr7_acceptance/                       # memory_mode/rag_scope 验收
+tests/pr8_acceptance/                       # 评测扩展验收
 ```
 
-These validate core configuration, ingestion/RAG behavior, session-memory behavior, and PR-8 evaluator extensions.
+## 注意事项
 
-This will provide a link to a LangSmith experiment, which will have a name `YOUR_EXPERIMENT_NAME`. Once this is done, extract the results to a JSONL file that can be submitted to the Deep Research Bench.
+- 这是研究助手，不是事实保证系统，关键结论请结合来源复核
+- 全量评测会产生明显 token 成本，建议先跑本地验收再跑大规模评估
+- 如需同步上游，请按需与 langchain-ai/open_deep_research 对齐
 
-```bash
-python tests/extract_langsmith_data.py --project-name "YOUR_EXPERIMENT_NAME" --model-name "you-model-name" --dataset-name "deep_research_bench"
-```
+## 致谢
 
-This creates `tests/expt_results/deep_research_bench_model-name.jsonl` with the required format. Move the generated JSONL file to a local clone of the Deep Research Bench repository and follow their [Quick Start guide](https://github.com/Ayanami0730/deep_research_bench?tab=readme-ov-file#quick-start) for evaluation submission.
-
-#### Results 
-
-| Name | Commit | Summarization | Research | Compression | Total Cost | Total Tokens | RACE Score | Experiment |
-|------|--------|---------------|----------|-------------|------------|--------------|------------|------------|
-| GPT-5 | [ca3951d](https://github.com/langchain-ai/open_deep_research/pull/168/commits) | openai:gpt-4.1-mini | openai:gpt-5 | openai:gpt-4.1 |  | 204,640,896 | 0.4943 | [Link](https://smith.langchain.com/o/ebbaf2eb-769b-4505-aca2-d11de10372a4/datasets/6e4766ca-613c-4bda-8bde-f64f0422bbf3/compare?selectedSessions=4d5941c8-69ce-4f3d-8b3e-e3c99dfbd4cc&baseline=undefined) |
-| Defaults | [6532a41](https://github.com/langchain-ai/open_deep_research/commit/6532a4176a93cc9bb2102b3d825dcefa560c85d9) | openai:gpt-4.1-mini | openai:gpt-4.1 | openai:gpt-4.1 | $45.98 | 58,015,332 | 0.4309 | [Link](https://smith.langchain.com/o/ebbaf2eb-769b-4505-aca2-d11de10372a4/datasets/6e4766ca-6[…]ons=cf4355d7-6347-47e2-a774-484f290e79bc&baseline=undefined) |
-| Claude Sonnet 4 | [f877ea9](https://github.com/langchain-ai/open_deep_research/pull/163/commits/f877ea93641680879c420ea991e998b47aab9bcc) | openai:gpt-4.1-mini | anthropic:claude-sonnet-4-20250514 | openai:gpt-4.1 | $187.09 | 138,917,050 | 0.4401 | [Link](https://smith.langchain.com/o/ebbaf2eb-769b-4505-aca2-d11de10372a4/datasets/6e4766ca-6[…]ons=04f6002d-6080-4759-bcf5-9a52e57449ea&baseline=undefined) |
-| Deep Research Bench Submission | [c0a160b](https://github.com/langchain-ai/open_deep_research/commit/c0a160b57a9b5ecd4b8217c3811a14d8eff97f72) | openai:gpt-4.1-nano | openai:gpt-4.1 | openai:gpt-4.1 | $87.83 | 207,005,549 | 0.4344 | [Link](https://smith.langchain.com/o/ebbaf2eb-769b-4505-aca2-d11de10372a4/datasets/6e4766ca-6[…]ons=e6647f74-ad2f-4cb9-887e-acb38b5f73c0&baseline=undefined) |
-
-### 🚀 Deployments and Usage
-
-#### LangGraph Studio
-
-Follow the [quickstart](#-quickstart) to start LangGraph server locally and test the agent out on LangGraph Studio.
-
-#### Hosted deployment
- 
-You can easily deploy to [LangGraph Platform](https://langchain-ai.github.io/langgraph/concepts/#deployment-options). 
-
-#### Open Agent Platform
-
-Open Agent Platform (OAP) is a UI from which non-technical users can build and configure their own agents. OAP is great for allowing users to configure the Deep Researcher with different MCP tools and search APIs that are best suited to their needs and the problems that they want to solve.
-
-We've deployed Open Deep Research to our public demo instance of OAP. All you need to do is add your API Keys, and you can test out the Deep Researcher for yourself! Try it out [here](https://oap.langchain.com)
-
-You can also deploy your own instance of OAP, and make your own custom agents (like Deep Researcher) available on it to your users.
-1. [Deploy Open Agent Platform](https://docs.oap.langchain.com/quickstart)
-2. [Add Deep Researcher to OAP](https://docs.oap.langchain.com/setup/agents)
-
-### Legacy Implementations 🏛️
-
-The `src/legacy/` folder contains two earlier implementations that provide alternative approaches to automated research. They are less performant than the current implementation, but provide alternative ideas understanding the different approaches to deep research.
-
-#### 1. Workflow Implementation (`legacy/graph.py`)
-- **Plan-and-Execute**: Structured workflow with human-in-the-loop planning
-- **Sequential Processing**: Creates sections one by one with reflection
-- **Interactive Control**: Allows feedback and approval of report plans
-- **Quality Focused**: Emphasizes accuracy through iterative refinement
-
-#### 2. Multi-Agent Implementation (`legacy/multi_agent.py`)  
-- **Supervisor-Researcher Architecture**: Coordinated multi-agent system
-- **Parallel Processing**: Multiple researchers work simultaneously
-- **Speed Optimized**: Faster report generation through concurrency
-- **MCP Support**: Extensive Model Context Protocol integration
+- Upstream: langchain-ai/open_deep_research
+- 本项目在其基础上增强了 RAG、Memory 与评测闭环
